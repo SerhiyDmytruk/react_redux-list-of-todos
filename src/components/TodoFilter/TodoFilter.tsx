@@ -1,30 +1,43 @@
-import { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useAppDispatch, useAppSelector } from '../../app/hooks';
+import {
+  selectFilterQuery,
+  selectFilterStatus,
+  setQuery,
+  setStatus,
+} from '../../features/filter';
+import { Status } from '../../types/Status';
 
-type Props = {
-  setInputQuery: (str: string) => void;
-  setSelectValue: (value: string) => void;
-};
+export const TodoFilter: React.FC = () => {
+  const dispatch = useAppDispatch();
+  const query = useAppSelector(selectFilterQuery);
+  const status = useAppSelector(selectFilterStatus);
+  const [value, setValue] = useState(query);
 
-export const TodoFilter: React.FC<Props> = ({
-  setInputQuery,
-  setSelectValue,
-}) => {
-  const [value, setValue] = useState('');
-
-  const handleSelectChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectValue(event.target.value);
-  };
+  useEffect(() => {
+    setValue(query);
+  }, [query]);
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setValue(event.target.value);
-    setInputQuery(event.target.value.trim().toLowerCase());
+    const nextValue = event.target.value;
+
+    setValue(nextValue);
+    dispatch(setQuery(nextValue.trim().toLowerCase()));
+  };
+
+  const handleSelectChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    dispatch(setStatus(event.target.value as Status));
   };
 
   return (
     <form className="field has-addons">
       <p className="control">
         <span className="select">
-          <select data-cy="statusSelect" onChange={handleSelectChange}>
+          <select
+            data-cy="statusSelect"
+            onChange={handleSelectChange}
+            value={status}
+          >
             <option value="all">All</option>
             <option value="active">Active</option>
             <option value="completed">Completed</option>
@@ -45,17 +58,13 @@ export const TodoFilter: React.FC<Props> = ({
           <i className="fas fa-magnifying-glass" />
         </span>
 
-        {value && (
+        {query && (
           <span className="icon is-right" style={{ pointerEvents: 'all' }}>
-            {/* eslint-disable-next-line jsx-a11y/control-has-associated-label */}
             <button
               data-cy="clearSearchButton"
               type="button"
               className="delete"
-              onClick={() => {
-                setInputQuery('');
-                setValue('');
-              }}
+              onClick={() => dispatch(setQuery(''))}
             />
           </span>
         )}

@@ -1,124 +1,111 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import 'bulma/css/bulma.css';
 import '@fortawesome/fontawesome-free/css/all.css';
 import { Loader, TodoFilter, TodoList, TodoModal } from './components';
 
 import { getTodos, getUser } from './api';
-import { Todo } from './types/Todo';
-import { User } from './types/User';
+import { useAppDispatch, useAppSelector } from './app/hooks';
+import {
+  loadFailure,
+  loadStart,
+  loadSuccess,
+  selectTodosError,
+  selectTodosLoading,
+} from './features/todos';
+import {
+  clearSelection,
+  clearUser,
+  selectCurrentTodo,
+  selectCurrentTodoError,
+  selectIsModalOpen,
+  setCurrentTodoError,
+  setCurrentUser,
+} from './features/currentTodo';
 
 export const App: React.FC = () => {
-  // #region ErrorMes
-  const [errorMes, setErrorMes] = useState('');
-
-  // #endregion
-
-  // #region loading
-  const [loadingTodos, setLoadingTodos] = useState(true);
-  // #endregion
-
-  // #region todos
-  const [todos, setTodos] = useState<Todo[]>([]);
-  const [selectedTodoId, setSelectedTodoId] = useState<number | null>(null);
+  const dispatch = useAppDispatch();
+  const loadingTodos = useAppSelector(selectTodosLoading);
+  const todosError = useAppSelector(selectTodosError);
+  const selectedTodo = useAppSelector(selectCurrentTodo);
+  const modalOpen = useAppSelector(selectIsModalOpen);
+  const modalError = useAppSelector(selectCurrentTodoError);
 
   useEffect(() => {
+    dispatch(loadStart());
+
     getTodos()
-      .then(setTodos)
-      .finally(() => {
-        setLoadingTodos(false);
+      .then(todos => {
+        dispatch(loadSuccess(todos));
       })
-      .catch(error => setErrorMes(error));
-  }, []);
-  // #endregion
-
-  // #region modal
-  const [modal, setModal] = useState(false);
-  const [todoForModal, setTodoForModal] = useState<Todo | undefined>();
-  const [userForModal, setUserForModal] = useState<User>();
+      .catch(error => {
+        dispatch(
+          loadFailure(
+            error instanceof Error ? error.message : String(error ?? 'Unknown'),
+          ),
+        );
+      });
+  }, [dispatch]);
 
   useEffect(() => {
-    if (!todoForModal) {
+    if (!selectedTodo) {
       return;
     }
 
     let isCancelled = false;
 
-    setUserForModal(undefined);
+    dispatch(clearUser());
+    dispatch(setCurrentTodoError(null));
 
-    getUser(todoForModal.userId)
+    getUser(selectedTodo.userId)
       .then(user => {
-        if (!isCancelled) {
-          setUserForModal(user);
+        if (isCancelled) {
+          return;
         }
+
+        dispatch(setCurrentUser(user));
       })
       .catch(error => {
-        setErrorMes(error);
-        setModal(false);
+        if (isCancelled) {
+          return;
+        }
+
+        dispatch(
+          setCurrentTodoError(
+            error instanceof Error ? error.message : String(error ?? 'Unknown'),
+          ),
+        );
+        dispatch(clearSelection());
       });
 
     return () => {
       isCancelled = true;
     };
-  }, [todoForModal]);
-  // #endregion
+  }, [dispatch, selectedTodo]);
 
-  // #region filter
-  const [query, setQuery] = useState('');
-  const [status, setStatus] = useState('all');
-
-  const filteredTodos = todos
-    .filter(todo => {
-      return todo.title.toLowerCase().includes(query);
-    })
-    .filter(todo => {
-      if (status === 'active') {
-        return todo.completed === false;
-      } else if (status === 'completed') {
-        return todo.completed === true;
-      }
-
-      return true;
-    });
-  // #endregion
+  const hasError = todosError ?? modalError;
 
   return (
     <>
       <div className="section">
         <div className="container">
           <div className="box">
-            {errorMes && <span>{errorMes}</span>}
+            {hasError && <span>{hasError}</span>}
 
             <h1 className="title">Todos:</h1>
 
             <div className="block">
-              <TodoFilter setInputQuery={setQuery} setSelectValue={setStatus} />
+              <TodoFilter />
             </div>
 
             <div className="block">
-              {filteredTodos && !loadingTodos && (
-                <TodoList
-                  todos={filteredTodos}
-                  setTodo={setTodoForModal}
-                  setModal={setModal}
-                  selectedId={selectedTodoId}
-                  setSelectedId={setSelectedTodoId}
-                />
-              )}
-
-              {filteredTodos && loadingTodos && <Loader />}
+              {!loadingTodos && <TodoList />}
+              {loadingTodos && <Loader />}
             </div>
           </div>
         </div>
       </div>
 
-      {modal && (
-        <TodoModal
-          todoData={todoForModal}
-          userData={userForModal}
-          setModal={setModal}
-          setSelectedId={setSelectedTodoId}
-        />
-      )}
+      {modalOpen && <TodoModal />}
     </>
   );
 };

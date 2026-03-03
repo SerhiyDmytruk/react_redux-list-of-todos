@@ -1,71 +1,74 @@
 import React, { memo } from 'react';
-import { Todo } from '../../types/Todo';
-import { User } from '../../types/User';
-import { Loader } from '../Loader';
 import classNames from 'classnames';
+import { useAppDispatch, useAppSelector } from '../../app/hooks';
+import { Loader } from '../Loader';
+import {
+  clearSelection,
+  selectCurrentTodo,
+  selectCurrentUser,
+  selectIsModalOpen,
+} from '../../features/currentTodo';
 
-type Props = {
-  todoData: Todo | undefined;
-  userData: User | undefined;
-  setModal: (status: boolean) => void;
-  setSelectedId: (id: number | null) => void;
-};
+export const TodoModal: React.FC = memo(() => {
+  const dispatch = useAppDispatch();
+  const todoData = useAppSelector(selectCurrentTodo);
+  const userData = useAppSelector(selectCurrentUser);
+  const isActive = useAppSelector(selectIsModalOpen);
 
-export const TodoModal: React.FC<Props> = memo(
-  ({ todoData, userData, setModal, setSelectedId }) => {
-    return (
-      <div className="modal is-active" data-cy="modal">
-        <div className="modal-background" />
+  if (!isActive) {
+    return null;
+  }
 
-        {!todoData || !userData ? (
-          <Loader />
-        ) : (
-          <div className="modal-card">
-            <header className="modal-card-head">
-              <div
-                className="modal-card-title has-text-weight-medium"
-                data-cy="modal-header"
-              >
-                Todo #{todoData.id}
-              </div>
+  return (
+    <div className="modal is-active" data-cy="modal">
+      <div className="modal-background" />
 
-              {/* eslint-disable-next-line jsx-a11y/control-has-associated-label */}
-              <button
-                type="button"
-                className="delete"
-                data-cy="modal-close"
-                onClick={() => {
-                  setModal(false);
-                  setSelectedId(null);
-                }}
-              />
-            </header>
-
-            <div className="modal-card-body">
-              <p className="block" data-cy="modal-title">
-                {todoData.title}
-              </p>
-
-              <p className="block" data-cy="modal-user">
-                <strong
-                  className={classNames({
-                    'has-text-success': todoData.completed,
-                    'has-text-danger': !todoData.completed,
-                  })}
-                >
-                  {todoData.completed ? 'Done' : 'Planned'}
-                </strong>
-
-                {' by '}
-
-                <a href={`mailto:${userData.email}`}>{userData.name}</a>
-              </p>
+      {!todoData || !userData ? (
+        <Loader />
+      ) : (
+        <div className="modal-card">
+          <header className="modal-card-head">
+            <div
+              className="modal-card-title has-text-weight-medium"
+              data-cy="modal-header"
+            >
+              Todo #{todoData.id}
             </div>
+
+            <button
+              type="button"
+              className="delete"
+              data-cy="modal-close"
+              onClick={() => {
+                dispatch(clearSelection());
+              }}
+            />
+          </header>
+
+          <div className="modal-card-body">
+            <p className="block" data-cy="modal-title">
+              {todoData.title}
+            </p>
+
+            <p className="block" data-cy="modal-user">
+              <strong
+                className={classNames({
+                  'has-text-success': todoData.completed,
+                  'has-text-danger': !todoData.completed,
+                })}
+              >
+                {todoData.completed ? 'Done' : 'Planned'}
+              </strong>
+
+              {' by '}
+
+              <a href={`mailto:${userData.email}`}>{userData.name}</a>
+            </p>
           </div>
-        )}
-      </div>
-    );
-  },
-);
+        </div>
+      )}
+    </div>
+  );
+});
 
 TodoModal.displayName = 'TodoModal';
